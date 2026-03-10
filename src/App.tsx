@@ -143,6 +143,19 @@ const Login = ({ onLogin }: { onLogin: () => void }) => {
   );
 };
 
+const InputField = ({ label, name, value, type = "text", className = "", onChange }: any) => (
+  <div className={className}>
+    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">{label}</label>
+    <input
+      type={type}
+      name={name}
+      value={value}
+      onChange={onChange}
+      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all text-sm font-medium text-gray-900"
+    />
+  </div>
+);
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [data, setData] = useState<InvoiceData>(initialData);
@@ -280,19 +293,6 @@ export default function App() {
     return <Login onLogin={() => setIsLoggedIn(true)} />;
   }
 
-  const InputField = ({ label, name, value, type = "text", className = "" }: any) => (
-    <div className={className}>
-      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">{label}</label>
-      <input
-        type={type}
-        name={name}
-        value={value}
-        onChange={handleInputChange}
-        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all text-sm font-medium text-gray-900"
-      />
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-gray-100 font-sans flex flex-col pb-24 lg:pb-0">
       {/* Navbar */}
@@ -335,8 +335,8 @@ export default function App() {
                 <div className="w-2 h-2 rounded-full bg-black"></div> Información General
               </h3>
               <div className="grid grid-cols-2 gap-4">
-                <InputField label="Nº Factura" name="invoiceNumber" value={data.invoiceNumber} />
-                <InputField label="Fecha" name="date" value={data.date} />
+                <InputField label="Nº Factura" name="invoiceNumber" value={data.invoiceNumber} onChange={handleInputChange} />
+                <InputField label="Fecha" name="date" value={data.date} onChange={handleInputChange} />
               </div>
             </section>
 
@@ -346,13 +346,13 @@ export default function App() {
                 <div className="w-2 h-2 rounded-full bg-black"></div> Datos del Cliente
               </h3>
               <div className="space-y-4">
-                <InputField label="Nombre / Razón Social" name="clientName" value={data.clientName} />
-                <InputField label="Dirección" name="clientAddress1" value={data.clientAddress1} />
+                <InputField label="Nombre / Razón Social" name="clientName" value={data.clientName} onChange={handleInputChange} />
+                <InputField label="Dirección" name="clientAddress1" value={data.clientAddress1} onChange={handleInputChange} />
                 <div className="grid grid-cols-2 gap-4">
-                  <InputField label="C.P." name="clientPostalCode" value={data.clientPostalCode} />
-                  <InputField label="Ciudad" name="clientCity" value={data.clientCity} />
+                  <InputField label="C.P." name="clientPostalCode" value={data.clientPostalCode} onChange={handleInputChange} />
+                  <InputField label="Ciudad" name="clientCity" value={data.clientCity} onChange={handleInputChange} />
                 </div>
-                <InputField label="NIF / CIF" name="clientTaxId" value={data.clientTaxId} />
+                <InputField label="NIF / CIF" name="clientTaxId" value={data.clientTaxId} onChange={handleInputChange} />
               </div>
             </section>
 
@@ -362,8 +362,8 @@ export default function App() {
                 <div className="w-2 h-2 rounded-full bg-black"></div> Datos de la Empresa
               </h3>
               <div className="space-y-4">
-                <InputField label="Nombre y NIF" name="companyName" value={data.companyName} />
-                <InputField label="Dirección" name="companyAddress" value={data.companyAddress} />
+                <InputField label="Nombre y NIF" name="companyName" value={data.companyName} onChange={handleInputChange} />
+                <InputField label="Dirección" name="companyAddress" value={data.companyAddress} onChange={handleInputChange} />
               </div>
             </section>
 
@@ -433,9 +433,9 @@ export default function App() {
                 <div className="w-2 h-2 rounded-full bg-black"></div> Totales y Pago
               </h3>
               <div className="space-y-4">
-                <InputField label="IVA (%)" name="vatPercentage" type="number" value={data.vatPercentage} />
-                <InputField label="Método de Pago" name="paymentMethod" value={data.paymentMethod} />
-                <InputField label="Cuenta / Detalles" name="paymentAccount" value={data.paymentAccount} />
+                <InputField label="IVA (%)" name="vatPercentage" type="number" value={data.vatPercentage} onChange={handleInputChange} />
+                <InputField label="Método de Pago" name="paymentMethod" value={data.paymentMethod} onChange={handleInputChange} />
+                <InputField label="Cuenta / Detalles" name="paymentAccount" value={data.paymentAccount} onChange={handleInputChange} />
               </div>
             </section>
 
