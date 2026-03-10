@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Download, Plus, Trash2, FileText, User, Lock, LogOut, Eye, Edit3 } from 'lucide-react';
+import { Download, Plus, Minus, RotateCcw, Trash2, FileText, User, Lock, LogOut, Eye, Edit3 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -145,25 +145,28 @@ const Login = ({ onLogin }: { onLogin: () => void }) => {
 
 const InputField = ({ label, name, value, type = "text", className = "", onChange }: any) => (
   <div className={className}>
-    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">{label}</label>
+    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-1.5 ml-1">{label}</label>
     <input
       type={type}
       name={name}
       value={value}
       onChange={onChange}
-      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all text-sm font-medium text-gray-900"
+      className="w-full px-5 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all text-sm font-bold text-gray-900 placeholder:text-gray-300"
     />
   </div>
 );
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return localStorage.getItem('isLoggedIn') === 'true';
+  });
   const [data, setData] = useState<InvoiceData>(initialData);
   const [activeTab, setActiveTab] = useState<'form' | 'preview'>('form');
   const invoiceRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const [previewScale, setPreviewScale] = useState(1);
+  const [manualZoom, setManualZoom] = useState(1);
 
   useEffect(() => {
     if (activeTab === 'form' && formRef.current) {
@@ -178,8 +181,8 @@ export default function App() {
       if (containerRef.current) {
         const { clientWidth } = containerRef.current;
         const availableWidth = clientWidth - 32; // 16px padding on each side
-        const newScale = Math.min(1, availableWidth / 794);
-        setPreviewScale(newScale);
+        const baseScale = Math.min(1, availableWidth / 794);
+        setPreviewScale(baseScale * manualZoom);
       }
     };
 
@@ -191,7 +194,7 @@ export default function App() {
     updateScale();
 
     return () => observer.disconnect();
-  }, [activeTab]);
+  }, [activeTab, manualZoom]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -238,28 +241,51 @@ export default function App() {
     if (activeTab === 'form' && window.innerWidth < 1024) {
       setActiveTab('preview');
       // Wait for React to render the preview tab and animations to finish
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 400));
     }
 
     if (!invoiceRef.current) return;
 
-    const wrapper = document.getElementById('invoice-wrapper');
-    const originalTransform = wrapper?.style.transform;
-    const originalMargin = wrapper?.style.marginBottom;
+    // Ensure we are at the top to avoid coordinate issues with html2canvas
+    window.scrollTo(0, 0);
 
-    if (wrapper) {
-      wrapper.style.transform = 'none';
-      wrapper.style.marginBottom = '0px';
-    }
-
-    // Pequeña pausa para que el DOM se actualice antes de capturar
+    // Create a clone for clean capture to avoid UI artifacts and jumps
+    const originalElement = invoiceRef.current;
+    const clone = originalElement.cloneNode(true) as HTMLElement;
+    
+    // Reset styles for capture to ensure perfect rendering
+    clone.style.transform = 'none';
+    clone.style.margin = '0';
+    clone.style.position = 'fixed';
+    clone.style.top = '-10000px';
+    clone.style.left = '-10000px';
+    clone.style.boxShadow = 'none';
+    clone.style.display = 'flex';
+    clone.style.width = '794px';
+    clone.style.height = '1123px';
+    
+    document.body.appendChild(clone);
+    
+    // Give browser a moment to render the clone properly
     await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
-      const canvas = await html2canvas(invoiceRef.current, {
+      const canvas = await html2canvas(clone, {
         scale: 2,
         useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        width: 794,
+        height: 1123,
+        windowWidth: 794,
+        windowHeight: 1123,
+        x: 0,
+        y: 0,
+        scrollX: 0,
+        scrollY: 0,
       });
+
+      document.body.removeChild(clone);
 
       const imgData = canvas.toDataURL('image/png');
       
@@ -281,53 +307,57 @@ export default function App() {
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Hubo un error al generar el PDF. Por favor, inténtalo de nuevo.');
-    } finally {
-      if (wrapper) {
-        wrapper.style.transform = originalTransform || '';
-        wrapper.style.marginBottom = originalMargin || '';
+      if (document.body.contains(clone)) {
+        document.body.removeChild(clone);
       }
     }
   };
 
   if (!isLoggedIn) {
-    return <Login onLogin={() => setIsLoggedIn(true)} />;
+    return <Login onLogin={() => {
+      setIsLoggedIn(true);
+      localStorage.setItem('isLoggedIn', 'true');
+    }} />;
   }
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans flex flex-col pb-24 lg:pb-0">
       {/* Navbar */}
-      <header className="bg-white px-6 py-3 flex justify-between items-center print:hidden z-20 sticky top-0 border-b border-gray-200">
+      <header className="bg-white px-6 py-4 flex justify-between items-center print:hidden z-30 sticky top-0 border-b border-gray-100 shadow-sm">
         <Logo compact />
         <button 
-          onClick={() => setIsLoggedIn(false)} 
-          className="text-gray-500 hover:text-black flex items-center gap-2 text-sm font-bold transition-colors bg-gray-50 hover:bg-gray-100 px-4 py-2.5 rounded-xl"
+          onClick={() => {
+            setIsLoggedIn(false);
+            localStorage.removeItem('isLoggedIn');
+          }} 
+          className="text-gray-500 hover:text-black flex items-center gap-2 text-xs font-black transition-all bg-gray-50 hover:bg-gray-100 px-4 py-2.5 rounded-xl border border-gray-200 uppercase tracking-tighter"
         >
-          <LogOut size={18} /> <span className="hidden sm:inline">Salir</span>
+          <LogOut size={16} /> <span className="hidden sm:inline">Cerrar Sesión</span>
         </button>
       </header>
 
       {/* Mobile Tabs */}
-      <div className="flex lg:hidden bg-white border-b border-gray-200 sticky top-[73px] z-20">
+      <div className="flex lg:hidden bg-white border-b border-gray-200 sticky top-[65px] z-20 shadow-sm">
         <button 
           onClick={() => setActiveTab('form')}
-          className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'form' ? 'text-black border-b-2 border-black' : 'text-gray-400'}`}
+          className={`flex-1 py-4 text-sm font-extrabold flex items-center justify-center gap-2 transition-all ${activeTab === 'form' ? 'text-black border-b-2 border-black bg-gray-50/50' : 'text-gray-400 hover:text-gray-600'}`}
         >
-          <Edit3 size={18} /> Editar Datos
+          <Edit3 size={18} /> <span className="uppercase tracking-wider">Datos</span>
         </button>
         <button 
           onClick={() => setActiveTab('preview')}
-          className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'preview' ? 'text-black border-b-2 border-black' : 'text-gray-400'}`}
+          className={`flex-1 py-4 text-sm font-extrabold flex items-center justify-center gap-2 transition-all ${activeTab === 'preview' ? 'text-black border-b-2 border-black bg-gray-50/50' : 'text-gray-400 hover:text-gray-600'}`}
         >
-          <Eye size={18} /> Vista Previa
+          <Eye size={18} /> <span className="uppercase tracking-wider">Vista Previa</span>
         </button>
       </div>
 
       {/* Main Content */}
-      <main className="flex flex-col lg:flex-row flex-grow h-[calc(100vh-73px)] overflow-hidden">
+      <main className="flex flex-col lg:flex-row flex-grow h-[calc(100vh-65px)] lg:h-[calc(100vh-65px)] overflow-hidden">
         
         {/* Form Section */}
         <div ref={formRef} className={`w-full lg:w-[400px] xl:w-[500px] bg-white border-r border-gray-200 overflow-y-auto print:hidden ${activeTab === 'form' ? 'block' : 'hidden lg:block'}`}>
-          <div className="p-4 sm:p-6 space-y-6">
+          <div className="p-4 sm:p-8 space-y-8 pb-32 lg:pb-8">
             
             {/* General Info */}
             <section className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
@@ -382,43 +412,47 @@ export default function App() {
               </div>
               <div className="space-y-4">
                 {data.items.map((item, index) => (
-                  <div key={item.id} className="p-4 bg-white rounded-xl border border-gray-200 relative shadow-sm">
+                  <div key={item.id} className="p-5 bg-white rounded-2xl border border-gray-200 relative shadow-sm hover:shadow-md transition-shadow">
                     {data.items.length > 1 && (
                       <button
                         onClick={() => removeItem(item.id)}
-                        className="absolute -top-2 -right-2 bg-red-100 text-red-600 hover:bg-red-200 p-1.5 rounded-full transition-colors shadow-sm"
+                        className="absolute -top-2 -right-2 bg-white text-red-500 hover:bg-red-50 p-2 rounded-full transition-all shadow-lg border border-red-100 active:scale-90"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={16} />
                       </button>
                     )}
-                    <div className="space-y-4">
+                    <div className="space-y-5">
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Detalle</label>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-1.5 ml-1">Descripción del Concepto</label>
                         <input
                           type="text"
+                          placeholder="Ej: Diseño de Logotipo"
                           value={item.description}
                           onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
-                          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none transition-all text-sm font-medium"
+                          className="w-full px-5 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-black outline-none transition-all text-sm font-bold"
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-5">
                         <div>
-                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Cantidad</label>
+                          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-1.5 ml-1">Cantidad</label>
                           <input
                             type="number"
                             value={item.quantity}
                             onChange={(e) => handleItemChange(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none transition-all text-sm font-medium"
+                            className="w-full px-5 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-black outline-none transition-all text-sm font-bold"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Precio (€)</label>
-                          <input
-                            type="number"
-                            value={item.price}
-                            onChange={(e) => handleItemChange(item.id, 'price', parseFloat(e.target.value) || 0)}
-                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none transition-all text-sm font-medium"
-                          />
+                          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-1.5 ml-1">Precio Unitario</label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              value={item.price}
+                              onChange={(e) => handleItemChange(item.id, 'price', parseFloat(e.target.value) || 0)}
+                              className="w-full pl-5 pr-10 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-black outline-none transition-all text-sm font-bold"
+                            />
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">€</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -454,8 +488,29 @@ export default function App() {
         {/* Preview Section */}
         <div 
           ref={containerRef}
-          className={`w-full lg:flex-1 bg-gray-200/60 overflow-y-auto overflow-x-auto p-4 sm:p-8 justify-center items-start print:p-0 print:bg-transparent print:block ${activeTab === 'preview' ? 'flex' : 'hidden lg:flex'}`}
+          className={`w-full lg:flex-1 bg-gray-200/60 overflow-y-auto overflow-x-auto p-4 sm:p-8 justify-center items-start print:p-0 print:bg-transparent print:block relative ${activeTab === 'preview' ? 'flex' : 'hidden lg:flex'}`}
         >
+          {/* Zoom Controls (Mobile only) */}
+          <div className="lg:hidden fixed top-[140px] right-4 flex flex-col gap-2 z-30">
+            <button 
+              onClick={() => setManualZoom(prev => Math.min(prev + 0.2, 2))}
+              className="bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg border border-gray-100 text-black active:scale-90 transition-all"
+            >
+              <Plus size={20} />
+            </button>
+            <button 
+              onClick={() => setManualZoom(1)}
+              className="bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg border border-gray-100 text-black active:scale-90 transition-all"
+            >
+              <RotateCcw size={20} />
+            </button>
+            <button 
+              onClick={() => setManualZoom(prev => Math.max(prev - 0.2, 0.5))}
+              className="bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg border border-gray-100 text-black active:scale-90 transition-all"
+            >
+              <Minus size={20} />
+            </button>
+          </div>
           <div 
             id="invoice-wrapper"
             style={{ 
@@ -467,15 +522,18 @@ export default function App() {
           >
             <div 
               ref={invoiceRef}
-              className="bg-white shadow-2xl w-[794px] h-[1123px] shrink-0 flex flex-col print:shadow-none print:w-[210mm] print:h-[297mm] print:m-0"
+              className="bg-white shadow-2xl w-[794px] h-[1123px] shrink-0 flex flex-col print:shadow-none print:w-[210mm] print:h-[297mm] print:m-0 relative"
               style={{ fontFamily: "'Inter', sans-serif" }}
             >
               {/* Top Beige Background */}
             <div className="bg-[#F4EFEA] w-full pt-20 pb-12 px-16 print:bg-[#F4EFEA] print:print-color-adjust-exact">
-              <div className="w-max flex flex-col">
-                <h1 className="text-[64px] font-medium tracking-wide text-black leading-none mb-3 border-b-[4px] border-black pb-2 text-center">FACTURA</h1>
-                <div className="border-[2px] border-black px-4 py-2 font-bold text-xl text-center bg-transparent">
-                  Nº: {data.invoiceNumber} <span className="ml-4">{data.date}</span>
+              <div className="flex flex-col items-start relative">
+                <h1 className="text-[64px] font-medium tracking-wide text-black leading-tight">
+                  <span>FACTURA</span>
+                </h1>
+                <div className="h-[4px] bg-black w-[280px] mb-4"></div>
+                <div className="border-[2px] border-black px-6 py-2 font-bold text-xl">
+                  Nº: {data.invoiceNumber} <span className="ml-6">{data.date}</span>
                 </div>
               </div>
             </div>
@@ -485,8 +543,8 @@ export default function App() {
               
               <div>
                 {/* Client & Company Info */}
-                <div className="grid grid-cols-[1fr_auto_1fr] gap-12 mb-16">
-                  <div>
+                <div className="flex justify-between mb-16 items-start">
+                  <div className="flex-1 pr-12">
                     <h3 className="font-bold text-sm mb-2 text-black">DATOS DEL CLIENTE</h3>
                     <div className="text-sm leading-relaxed text-black">
                       <p>{data.clientName}</p>
@@ -496,8 +554,8 @@ export default function App() {
                       <p>{data.clientTaxId}</p>
                     </div>
                   </div>
-                  <div className="w-px bg-black h-32 mt-1"></div>
-                  <div className="text-right">
+                  <div className="w-px bg-black self-stretch shrink-0"></div>
+                  <div className="flex-1 pl-12 text-right">
                     <h3 className="font-bold text-sm mb-2 text-black">DATOS DE LA EMPRESA</h3>
                     <div className="text-sm leading-relaxed text-black">
                       <p>{data.companyName}</p>
@@ -571,12 +629,12 @@ export default function App() {
     </main>
 
       {/* Mobile Fixed Action Bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-4 flex z-40 pb-safe">
+      <div className="lg:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-200 p-4 flex z-40 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
         <button
           onClick={handleDownloadPDF}
-          className="w-full bg-black text-white py-3.5 rounded-xl font-bold flex items-center justify-center active:scale-95 transition-transform shadow-lg"
+          className="w-full bg-black text-white py-4 rounded-2xl font-extrabold flex items-center justify-center active:scale-[0.97] transition-all shadow-xl shadow-black/10 uppercase tracking-widest text-sm"
         >
-          <Download size={18} className="mr-2" /> Descargar PDF
+          <Download size={20} className="mr-2" /> Descargar Factura PDF
         </button>
       </div>
     </div>
