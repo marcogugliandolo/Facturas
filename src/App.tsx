@@ -261,6 +261,7 @@ export default function App() {
     clone.style.left = '-10000px';
     clone.style.boxShadow = 'none';
     clone.style.display = 'flex';
+    clone.style.flexDirection = 'column';
     clone.style.width = '794px';
     clone.style.height = '1123px';
     
@@ -268,6 +269,9 @@ export default function App() {
     
     // Give browser a moment to render the clone properly
     await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Ensure fonts are loaded before capture
+    await document.fonts.ready;
 
     try {
       const canvas = await html2canvas(clone, {
@@ -283,6 +287,8 @@ export default function App() {
         y: 0,
         scrollX: 0,
         scrollY: 0,
+        imageTimeout: 0,
+        removeContainer: true,
       });
 
       document.body.removeChild(clone);
@@ -528,11 +534,12 @@ export default function App() {
               {/* Top Beige Background */}
             <div className="bg-[#F4EFEA] w-full pt-20 pb-12 px-16 print:bg-[#F4EFEA] print:print-color-adjust-exact">
               <div className="flex flex-col items-start relative">
-                <h1 className="text-[64px] font-medium tracking-wide text-black leading-tight">
-                  <span>FACTURA</span>
-                </h1>
-                <div className="h-[4px] bg-black w-[280px] mb-4"></div>
-                <div className="border-[2px] border-black px-6 py-2 font-bold text-xl">
+                <div className="mb-10">
+                  <h1 className="text-[64px] font-medium tracking-wide text-black leading-[1.1] m-0 p-0 block whitespace-nowrap">
+                    FACTURA
+                  </h1>
+                </div>
+                <div className="border-[2px] border-black px-6 py-2 font-bold text-xl whitespace-nowrap">
                   Nº: {data.invoiceNumber} <span className="ml-6">{data.date}</span>
                 </div>
               </div>
