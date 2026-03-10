@@ -49,12 +49,12 @@ const initialData: InvoiceData = {
   paymentAccount: '71 0182 2585 1002 0172 6165',
 };
 
-const Logo = () => (
-  <div className="flex items-center gap-3">
-    <div className="bg-black text-white p-2.5 rounded-xl shadow-md">
-      <FileText size={22} strokeWidth={2} />
+const Logo = ({ compact = false }: { compact?: boolean }) => (
+  <div className={`flex items-center ${compact ? 'gap-2' : 'gap-3'}`}>
+    <div className={`bg-black text-white ${compact ? 'p-1.5 rounded-lg' : 'p-2.5 rounded-xl'} shadow-md`}>
+      <FileText size={compact ? 18 : 22} strokeWidth={2} />
     </div>
-    <span className="text-2xl font-extrabold tracking-tight text-gray-900">
+    <span className={`${compact ? 'text-lg sm:text-xl' : 'text-2xl'} font-extrabold tracking-tight text-gray-900`}>
       Facturas Yass&Moo
     </span>
   </div>
@@ -149,7 +149,16 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'form' | 'preview'>('form');
   const invoiceRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLDivElement>(null);
   const [previewScale, setPreviewScale] = useState(1);
+
+  useEffect(() => {
+    if (activeTab === 'form' && formRef.current) {
+      formRef.current.scrollTop = 0;
+    } else if (activeTab === 'preview' && containerRef.current) {
+      containerRef.current.scrollTop = 0;
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     const updateScale = () => {
@@ -213,6 +222,12 @@ export default function App() {
   };
 
   const handleDownloadPDF = async () => {
+    if (activeTab === 'form' && window.innerWidth < 1024) {
+      setActiveTab('preview');
+      // Wait for React to render the preview tab and animations to finish
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
     if (!invoiceRef.current) return;
 
     const wrapper = document.getElementById('invoice-wrapper');
@@ -225,7 +240,7 @@ export default function App() {
     }
 
     // Pequeña pausa para que el DOM se actualice antes de capturar
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
       const canvas = await html2canvas(invoiceRef.current, {
@@ -234,6 +249,11 @@ export default function App() {
       });
 
       const imgData = canvas.toDataURL('image/png');
+      
+      if (imgData === 'data:,') {
+        throw new Error('Canvas is empty. The element might be hidden.');
+      }
+
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -247,6 +267,7 @@ export default function App() {
       pdf.save(`Factura_${data.invoiceNumber}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
+      alert('Hubo un error al generar el PDF. Por favor, inténtalo de nuevo.');
     } finally {
       if (wrapper) {
         wrapper.style.transform = originalTransform || '';
@@ -275,8 +296,8 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-100 font-sans flex flex-col pb-24 lg:pb-0">
       {/* Navbar */}
-      <header className="bg-white px-6 py-4 flex justify-between items-center print:hidden z-20 sticky top-0 border-b border-gray-200">
-        <Logo />
+      <header className="bg-white px-6 py-3 flex justify-between items-center print:hidden z-20 sticky top-0 border-b border-gray-200">
+        <Logo compact />
         <button 
           onClick={() => setIsLoggedIn(false)} 
           className="text-gray-500 hover:text-black flex items-center gap-2 text-sm font-bold transition-colors bg-gray-50 hover:bg-gray-100 px-4 py-2.5 rounded-xl"
@@ -305,7 +326,7 @@ export default function App() {
       <main className="flex flex-col lg:flex-row flex-grow h-[calc(100vh-73px)] overflow-hidden">
         
         {/* Form Section */}
-        <div className={`w-full lg:w-[400px] xl:w-[500px] bg-white border-r border-gray-200 overflow-y-auto print:hidden ${activeTab === 'form' ? 'block' : 'hidden lg:block'}`}>
+        <div ref={formRef} className={`w-full lg:w-[400px] xl:w-[500px] bg-white border-r border-gray-200 overflow-y-auto print:hidden ${activeTab === 'form' ? 'block' : 'hidden lg:block'}`}>
           <div className="p-4 sm:p-6 space-y-6">
             
             {/* General Info */}
@@ -433,7 +454,7 @@ export default function App() {
         {/* Preview Section */}
         <div 
           ref={containerRef}
-          className={`w-full lg:flex-1 bg-gray-200/60 overflow-y-auto overflow-x-hidden p-4 sm:p-8 flex justify-center items-start print:p-0 print:bg-transparent print:block ${activeTab === 'preview' ? 'block' : 'hidden lg:flex'}`}
+          className={`w-full lg:flex-1 bg-gray-200/60 overflow-y-auto overflow-x-auto p-4 sm:p-8 justify-center items-start print:p-0 print:bg-transparent print:block ${activeTab === 'preview' ? 'flex' : 'hidden lg:flex'}`}
         >
           <div 
             id="invoice-wrapper"
@@ -451,10 +472,10 @@ export default function App() {
             >
               {/* Top Beige Background */}
             <div className="bg-[#F4EFEA] w-full pt-20 pb-12 px-16 print:bg-[#F4EFEA] print:print-color-adjust-exact">
-              <div className="w-max">
-                <h1 className="text-[64px] font-medium tracking-wide text-black leading-[1.1] border-b-[4px] border-black pb-2 mb-4">FACTURA</h1>
+              <div className="w-max flex flex-col">
+                <h1 className="text-[64px] font-medium tracking-wide text-black leading-none mb-3 border-b-[4px] border-black pb-2 text-center">FACTURA</h1>
                 <div className="border-[2px] border-black px-4 py-2 font-bold text-xl text-center bg-transparent">
-                  Nº: {data.invoiceNumber} <span className="mx-4">|</span> {data.date}
+                  Nº: {data.invoiceNumber} <span className="ml-4">{data.date}</span>
                 </div>
               </div>
             </div>
