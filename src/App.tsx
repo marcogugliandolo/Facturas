@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Download, Plus, Trash2, Printer, FileText, User, Lock, LogOut, Eye, Edit3 } from 'lucide-react';
+import { Download, Plus, Trash2, FileText, User, Lock, LogOut, Eye, Edit3 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -55,7 +55,7 @@ const Logo = () => (
       <FileText size={22} strokeWidth={2} />
     </div>
     <span className="text-2xl font-extrabold tracking-tight text-gray-900">
-      Facturas
+      Facturas Yass&Moo
     </span>
   </div>
 );
@@ -148,6 +148,28 @@ export default function App() {
   const [data, setData] = useState<InvoiceData>(initialData);
   const [activeTab, setActiveTab] = useState<'form' | 'preview'>('form');
   const invoiceRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [previewScale, setPreviewScale] = useState(1);
+
+  useEffect(() => {
+    const updateScale = () => {
+      if (containerRef.current) {
+        const { clientWidth } = containerRef.current;
+        const availableWidth = clientWidth - 32; // 16px padding on each side
+        const newScale = Math.min(1, availableWidth / 794);
+        setPreviewScale(newScale);
+      }
+    };
+
+    const observer = new ResizeObserver(updateScale);
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    updateScale();
+
+    return () => observer.disconnect();
+  }, [activeTab]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -193,6 +215,18 @@ export default function App() {
   const handleDownloadPDF = async () => {
     if (!invoiceRef.current) return;
 
+    const wrapper = document.getElementById('invoice-wrapper');
+    const originalTransform = wrapper?.style.transform;
+    const originalMargin = wrapper?.style.marginBottom;
+
+    if (wrapper) {
+      wrapper.style.transform = 'none';
+      wrapper.style.marginBottom = '0px';
+    }
+
+    // Pequeña pausa para que el DOM se actualice antes de capturar
+    await new Promise(resolve => setTimeout(resolve, 50));
+
     try {
       const canvas = await html2canvas(invoiceRef.current, {
         scale: 2,
@@ -213,11 +247,12 @@ export default function App() {
       pdf.save(`Factura_${data.invoiceNumber}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
+    } finally {
+      if (wrapper) {
+        wrapper.style.transform = originalTransform || '';
+        wrapper.style.marginBottom = originalMargin || '';
+      }
     }
-  };
-
-  const handlePrint = () => {
-    window.print();
   };
 
   if (!isLoggedIn) {
@@ -384,112 +419,120 @@ export default function App() {
             </section>
 
             {/* Desktop Actions */}
-            <div className="hidden lg:flex gap-3 pt-4">
+            <div className="hidden lg:flex pt-4">
               <button
                 onClick={handleDownloadPDF}
-                className="flex-1 bg-black hover:bg-gray-900 text-white py-3.5 px-4 rounded-xl font-bold flex items-center justify-center transition-all shadow-md active:scale-[0.98]"
+                className="w-full bg-black hover:bg-gray-900 text-white py-3.5 px-4 rounded-xl font-bold flex items-center justify-center transition-all shadow-md active:scale-[0.98]"
               >
-                <Download size={18} className="mr-2" /> PDF
-              </button>
-              <button
-                onClick={handlePrint}
-                className="flex-1 bg-white border-2 border-gray-200 hover:border-black text-gray-900 py-3.5 px-4 rounded-xl font-bold flex items-center justify-center transition-all active:scale-[0.98]"
-              >
-                <Printer size={18} className="mr-2" /> Imprimir
+                <Download size={18} className="mr-2" /> Descargar PDF
               </button>
             </div>
           </div>
         </div>
 
         {/* Preview Section */}
-        <div className={`w-full lg:flex-1 bg-gray-200/60 overflow-y-auto overflow-x-auto p-4 sm:p-8 flex justify-center items-start print:p-0 print:bg-transparent print:block ${activeTab === 'preview' ? 'block' : 'hidden lg:flex'}`}>
+        <div 
+          ref={containerRef}
+          className={`w-full lg:flex-1 bg-gray-200/60 overflow-y-auto overflow-x-hidden p-4 sm:p-8 flex justify-center items-start print:p-0 print:bg-transparent print:block ${activeTab === 'preview' ? 'block' : 'hidden lg:flex'}`}
+        >
           <div 
-            ref={invoiceRef}
-            className="bg-white shadow-2xl w-[210mm] h-[297mm] shrink-0 flex flex-col print:shadow-none print:w-[210mm] print:h-[297mm] print:m-0 origin-top"
-            style={{ fontFamily: "'Inter', sans-serif" }}
+            id="invoice-wrapper"
+            style={{ 
+              transform: `scale(${previewScale})`, 
+              transformOrigin: 'top center',
+              marginBottom: `-${1123 * (1 - previewScale)}px`
+            }}
+            className="print:!transform-none print:!m-0 transition-transform duration-200 ease-out"
           >
-            {/* Top Beige Background */}
+            <div 
+              ref={invoiceRef}
+              className="bg-white shadow-2xl w-[794px] h-[1123px] shrink-0 flex flex-col print:shadow-none print:w-[210mm] print:h-[297mm] print:m-0"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            >
+              {/* Top Beige Background */}
             <div className="bg-[#F4EFEA] w-full pt-20 pb-12 px-16 print:bg-[#F4EFEA] print:print-color-adjust-exact">
-              <div className="inline-flex flex-col items-stretch">
-                <h1 className="text-[64px] font-medium tracking-wide text-black leading-none border-b-[4px] border-black pb-1 mb-3">FACTURA</h1>
-                <div className="border-[2px] border-black px-4 py-1.5 font-bold text-xl bg-transparent text-center">
-                  Nº: {data.invoiceNumber} &nbsp;&nbsp;&nbsp; {data.date}
+              <div className="w-max">
+                <h1 className="text-[64px] font-medium tracking-wide text-black leading-[1.1] border-b-[4px] border-black pb-2 mb-4">FACTURA</h1>
+                <div className="border-[2px] border-black px-4 py-2 font-bold text-xl text-center bg-transparent">
+                  Nº: {data.invoiceNumber} <span className="mx-4">|</span> {data.date}
                 </div>
               </div>
             </div>
 
             {/* Main Content */}
-            <div className="flex-grow bg-white px-16 pt-16 flex flex-col">
+            <div className="flex-grow bg-white px-16 pt-16 flex flex-col justify-between">
               
-              {/* Client & Company Info */}
-              <div className="grid grid-cols-[1fr_auto_1fr] gap-12 mb-16">
-                <div>
-                  <h3 className="font-bold text-sm mb-2 text-black">DATOS DEL CLIENTE</h3>
-                  <div className="text-sm leading-relaxed text-black">
-                    <p>{data.clientName}</p>
-                    <p>{data.clientAddress1}</p>
-                    <p>{data.clientPostalCode}</p>
-                    <p>{data.clientCity}</p>
-                    <p>{data.clientTaxId}</p>
-                  </div>
-                </div>
-                <div className="w-px bg-black h-32 mt-1"></div>
-                <div className="text-right">
-                  <h3 className="font-bold text-sm mb-2 text-black">DATOS DE LA EMPRESA</h3>
-                  <div className="text-sm leading-relaxed text-black">
-                    <p>{data.companyName}</p>
-                    <p>{data.companyAddress}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Items Table */}
-              <div className="mb-4">
-                <div className="border-[2px] border-black flex font-bold text-sm text-black py-2.5 px-4 mb-4">
-                  <div className="w-[55%]">Detalle</div>
-                  <div className="w-[15%] text-center">Cantidad</div>
-                  <div className="w-[15%] text-center">Precio</div>
-                  <div className="w-[15%] text-center">Total</div>
-                </div>
-                <div className="flex flex-col text-sm text-black">
-                  {data.items.map((item) => (
-                    <div key={item.id} className="flex px-4 py-2">
-                      <div className="w-[55%]">{item.description}</div>
-                      <div className="w-[15%] text-center">
-                        {item.quantity < 10 ? `0${item.quantity}` : item.quantity}
-                      </div>
-                      <div className="w-[15%] text-center">
-                        {item.price.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}€
-                      </div>
-                      <div className="w-[15%] text-center">
-                        {(item.quantity * item.price).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}€
-                      </div>
+              <div>
+                {/* Client & Company Info */}
+                <div className="grid grid-cols-[1fr_auto_1fr] gap-12 mb-16">
+                  <div>
+                    <h3 className="font-bold text-sm mb-2 text-black">DATOS DEL CLIENTE</h3>
+                    <div className="text-sm leading-relaxed text-black">
+                      <p>{data.clientName}</p>
+                      <p>{data.clientAddress1}</p>
+                      <p>{data.clientPostalCode}</p>
+                      <p>{data.clientCity}</p>
+                      <p>{data.clientTaxId}</p>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Divider */}
-              <div className="border-b-[1.5px] border-black mt-24 mb-6"></div>
-
-              {/* Totals */}
-              <div className="flex justify-end mb-16">
-                <div className="w-[45%]">
-                  <div className="flex text-sm text-black py-2 px-4">
-                    <div className="w-1/3 font-bold">IVA</div>
-                    <div className="w-1/3 text-center">{data.vatPercentage} %</div>
-                    <div className="w-1/3 text-right">{calculateVAT().toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}€</div>
                   </div>
-                  <div className="flex text-sm text-black py-2.5 px-4 border-[2px] border-black font-bold mt-2">
-                    <div className="w-1/2">TOTAL</div>
-                    <div className="w-1/2 text-right">{calculateTotal().toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}€</div>
+                  <div className="w-px bg-black h-32 mt-1"></div>
+                  <div className="text-right">
+                    <h3 className="font-bold text-sm mb-2 text-black">DATOS DE LA EMPRESA</h3>
+                    <div className="text-sm leading-relaxed text-black">
+                      <p>{data.companyName}</p>
+                      <p>{data.companyAddress}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Items Table */}
+                <div className="mb-4">
+                  <div className="border-[2px] border-black flex font-bold text-sm text-black py-2.5 px-4 mb-4">
+                    <div className="w-[55%]">Detalle</div>
+                    <div className="w-[15%] text-center">Cantidad</div>
+                    <div className="w-[15%] text-center">Precio</div>
+                    <div className="w-[15%] text-center">Total</div>
+                  </div>
+                  <div className="flex flex-col text-sm text-black">
+                    {data.items.map((item) => (
+                      <div key={item.id} className="flex px-4 py-2">
+                        <div className="w-[55%]">{item.description}</div>
+                        <div className="w-[15%] text-center">
+                          {item.quantity < 10 ? `0${item.quantity}` : item.quantity}
+                        </div>
+                        <div className="w-[15%] text-center">
+                          {item.price.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}€
+                        </div>
+                        <div className="w-[15%] text-center">
+                          {(item.quantity * item.price).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}€
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="border-b-[1.5px] border-black mt-24 mb-6"></div>
+
+                {/* Totals */}
+                <div className="flex justify-end mb-16">
+                  <div className="w-[45%]">
+                    <div className="flex text-sm text-black py-2 px-4">
+                      <div className="w-1/3 font-bold">IVA</div>
+                      <div className="w-1/3 text-center">{data.vatPercentage} %</div>
+                      <div className="w-1/3 text-right">{calculateVAT().toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}€</div>
+                    </div>
+                    <div className="flex text-sm text-black py-2.5 px-4 border-[2px] border-black font-bold mt-2">
+                      <div className="w-1/2">TOTAL</div>
+                      <div className="w-1/2 text-right">{calculateTotal().toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}€</div>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Payment Info */}
-              <div className="mt-auto mb-16">
-                <div className="border-[2px] border-black p-6 inline-block min-w-[320px] bg-white">
+              <div className="mb-16">
+                <div className="border-[2px] border-black p-6 w-[320px] bg-white">
                   <h3 className="font-bold text-sm mb-4 text-black">INFORMACIÓN DE PAGO</h3>
                   <div className="text-sm leading-relaxed text-black">
                     <p>{data.paymentMethod}</p>
@@ -503,21 +546,16 @@ export default function App() {
             <div className="bg-[#F4EFEA] h-[100px] w-full shrink-0 print:bg-[#F4EFEA] print:print-color-adjust-exact"></div>
           </div>
         </div>
-      </main>
+      </div>
+    </main>
 
       {/* Mobile Fixed Action Bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-4 flex gap-3 z-40 pb-safe">
+      <div className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-4 flex z-40 pb-safe">
         <button
           onClick={handleDownloadPDF}
-          className="flex-1 bg-black text-white py-3.5 rounded-xl font-bold flex items-center justify-center active:scale-95 transition-transform shadow-lg"
+          className="w-full bg-black text-white py-3.5 rounded-xl font-bold flex items-center justify-center active:scale-95 transition-transform shadow-lg"
         >
-          <Download size={18} className="mr-2" /> PDF
-        </button>
-        <button
-          onClick={handlePrint}
-          className="flex-1 bg-gray-100 text-gray-900 py-3.5 rounded-xl font-bold flex items-center justify-center active:scale-95 transition-transform"
-        >
-          <Printer size={18} className="mr-2" /> Imprimir
+          <Download size={18} className="mr-2" /> Descargar PDF
         </button>
       </div>
     </div>

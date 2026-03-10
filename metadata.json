@@ -1,5 +1,5 @@
 {
-  "name": "Generador de Facturas",
-  "description": "Aplicación sencilla para generar y descargar facturas en formato PDF.",
+  "name": "Facturas Yass&Moo",
+  "description": "Aplicación de facturación móvil para Yass&Moo",
   "requestFramePermissions": []
 }
